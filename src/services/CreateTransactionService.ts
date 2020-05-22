@@ -20,11 +20,14 @@ class CreateTransactionService {
     category,
   }: Request): Promise<Transaction> {
     const transactionsRepository = getCustomRepository(TransactionsRepository);
-
     const categoryRepository = getRepository(Category);
 
-    const { total } = await transactionsRepository.getBalance();
+    const validType = type === 'income' || type === 'outcome';
+    if (!validType) {
+      throw new AppError(`Invalid type of transaction!`);
+    }
 
+    const { total } = await transactionsRepository.getBalance();
     if (type === 'outcome' && total < value) {
       throw new AppError('You do not have enough balance!');
     }
@@ -32,14 +35,15 @@ class CreateTransactionService {
     let transactionCategory = await categoryRepository.findOne({
       where: {
         title: category,
+        type,
       },
     });
 
     if (!transactionCategory) {
       transactionCategory = categoryRepository.create({
         title: category,
+        type,
       });
-
       await categoryRepository.save(transactionCategory);
     }
 

@@ -17,7 +17,6 @@ class ImportTransactionsService {
   async execute(filePath: string): Promise<Transaction[]> {
     const transactionsRepository = getCustomRepository(TransactionsRepository);
     const categoriesRepository = getRepository(Category);
-
     const contactsReadStream = fs.createReadStream(filePath);
 
     const parsers = csvParse({
@@ -25,8 +24,8 @@ class ImportTransactionsService {
     });
 
     const parseCSV = contactsReadStream.pipe(parsers);
-
     const transactions: CSVTransaction[] = [];
+    let transactionType = '';
     const categories: string[] = [];
 
     parseCSV.on('data', async line => {
@@ -36,8 +35,8 @@ class ImportTransactionsService {
 
       if (!title || !type || !value) return;
 
+      transactionType = type;
       categories.push(category);
-
       transactions.push({ title, type, value, category });
     });
 
@@ -46,6 +45,7 @@ class ImportTransactionsService {
     const existentCategories = await categoriesRepository.find({
       where: {
         title: In(categories),
+        type: transactionType,
       },
     });
 
@@ -60,6 +60,7 @@ class ImportTransactionsService {
     const newCategories = categoriesRepository.create(
       addCategoryTitles.map(title => ({
         title,
+        type: transactionType,
       })),
     );
 
